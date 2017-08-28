@@ -36,6 +36,7 @@ import android.os.storage.StorageEventListener;
 import android.os.storage.StorageManager;
 import android.os.storage.VolumeInfo;
 import android.os.storage.VolumeRecord;
+import android.os.SystemProperties;
 import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.support.v7.preference.Preference;
@@ -120,6 +121,7 @@ public class PrivateVolumeSettings extends SettingsPreferenceFragment {
     private VolumeInfo mVolume;
     private VolumeInfo mSharedVolume;
     private long mTotalSize;
+    private long mRealSize;
     private long mSystemSize;
 
     private StorageMeasurement mMeasure;
@@ -165,6 +167,7 @@ public class PrivateVolumeSettings extends SettingsPreferenceFragment {
 
         final long sharedDataSize = mVolume.getPath().getTotalSpace();
         mTotalSize = getArguments().getLong(EXTRA_VOLUME_SIZE, 0);
+        mRealSize = -1;
         mSystemSize = mTotalSize - sharedDataSize;
         if (LOGV) Log.v(TAG,
                 "onCreate() mTotalSize: " + mTotalSize + " sharedDataSize: " + sharedDataSize);
@@ -197,6 +200,8 @@ public class PrivateVolumeSettings extends SettingsPreferenceFragment {
         mNeedsUpdate = true;
 
         setHasOptionsMenu(true);
+
+        new Thread(new calculateApparentSize(this)).start();
     }
 
     private void setTitle() {
@@ -263,19 +268,61 @@ public class PrivateVolumeSettings extends SettingsPreferenceFragment {
         }
 
         final long freeBytes = mVolume.getPath().getFreeSpace();
+        final long realBytes = mRealSize;
         final long usedBytes = mTotalSize - freeBytes;
 
         if (LOGV) Log.v(TAG, "update() freeBytes: " + freeBytes + " usedBytes: " + usedBytes);
 
         final BytesResult result = Formatter.formatBytes(getResources(), usedBytes, 0);
+        String summaryStr = getString(R.string.storage_volume_used,
+                Formatter.formatFileSize(context, mTotalSize));
+
+        if (usedBytes >= realBytes) realBytes = -1; // Don't display compressed stat
+        if (realBytes != -1) {
+            summaryStr += "\n";
+            summaryStr += getString(R.string.storage_volume_compressed,
+                Formatter.formatFileSize(context, realBytes - usedBytes));
+
+            mSummary.setRealPercent((int) ((realBytes * 100) / mTotalSize));
+        }
+
         mSummary.setTitle(TextUtils.expandTemplate(getText(R.string.storage_size_large),
                 result.value, result.units));
-        mSummary.setSummary(getString(R.string.storage_volume_used,
-                Formatter.formatFileSize(context, mTotalSize)));
+        mSummary.setSummary(summaryStr);
         mSummary.setPercent((int) ((usedBytes * 100) / mTotalSize));
 
         mMeasure.forceMeasure();
         mNeedsUpdate = false;
+    }
+
+    private static class calculateApparentSize implements Runnable {
+        private final PrivateVolumeSettings mTarget;
+
+        public calculateApparentSize(PrivateVolumeSettings target) {
+            mTarget = target;
+        }
+
+        public void run() {
+            // Calculate real size
+            try {
+                // init will pick this up and force a recalculation
+                SystemProperties.set("sys.size.real", "-1");
+
+                long realsize;
+                while ((realsize = SystemProperties.getLong("sys.size.real", -1)) == -1) {
+                    Thread.sleep(100);
+                }
+                mTarget.mRealSize = realsize;
+
+                mTarget.getActivity().runOnUiThread(new Runnable() {
+                    public void run() {
+                        mTarget.update();
+                    }
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to calculate apparent size!", e);
+            }
+        }
     }
 
     private void addPreference(PreferenceGroup group, Preference pref) {

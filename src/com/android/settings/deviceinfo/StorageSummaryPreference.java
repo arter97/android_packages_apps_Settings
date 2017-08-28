@@ -31,6 +31,7 @@ import com.android.settings.Utils;
 
 public class StorageSummaryPreference extends Preference {
     private int mPercent = -1;
+    private int mRealPercent = -1;
     private int mSecondaryColor;
     private int mAccentColor;
 
@@ -55,6 +56,10 @@ public class StorageSummaryPreference extends Preference {
         mPercent = percent;
     }
 
+    public void setRealPercent(int percent) {
+        mRealPercent = percent;
+    }
+
     @Override
     public void onBindViewHolder(PreferenceViewHolder view) {
         final ProgressBar progress = (ProgressBar) view.findViewById(android.R.id.progress);
@@ -64,6 +69,10 @@ public class StorageSummaryPreference extends Preference {
             progress.setScaleY(7f);
         } else {
             progress.setVisibility(View.GONE);
+        }
+
+        if (mRealPercent != -1) {
+            progress.setSecondaryProgress(mRealPercent);
         }
 
         if (mThemeEnabled) {

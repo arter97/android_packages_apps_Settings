@@ -2632,6 +2632,8 @@
     <string name="storage_volume_used">Used of <xliff:g id="total" example="32GB">%1$s</xliff:g></string>
     <!-- Summary of a single storage volume total space. [CHAR LIMIT=48]-->
     <string name="storage_volume_used_total">Total used of <xliff:g id="total" example="32GB">%1$s</xliff:g></string>
+    <!-- Summary of a single storage volume compressed space. [CHAR LIMIT=48]-->
+    <string name="storage_volume_compressed"><xliff:g id="compressed" example="32GB">%1$s</xliff:g> compressed</string>
 
     <!-- Toast informing that storage mount operation was successful. [CHAR LIMIT=64]-->
     <string name="storage_mount_success"><xliff:g id="name" example="SD card">%1$s</xliff:g> is mounted</string>
